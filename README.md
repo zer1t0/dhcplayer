@@ -24,8 +24,8 @@ You can create a DHCP server with the `server` command. In the server you can us
 - Available IP Range
 - Broadcast Address
 - Network Mask
-- Router/Gateway IP (by default yours IP)
-- DNS server IP(s) (by default yours IP)
+- Router/Gateway IP (by default your IP)
+- DNS server IP(s) (by default your IP)
 - WPAD file (disabled by default)
 - NetBIOS/WINS name server (disabled by default)
 
