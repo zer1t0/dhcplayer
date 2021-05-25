@@ -2,7 +2,10 @@
 name = "dhcplayer"
 version = "0.1.0"
 authors = ["Eloy Pérez <zer1t0ps@protonmail.com>"]
+description = "A tool to play and attack DHCP"
 edition = "2018"
+license = "AGPL-3.0"
+repository = "https://github.com/Zer1t0/cerbero"
 readme = "README.md"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
