@@ -114,6 +114,11 @@ pub fn command() -> App<'static, 'static> {
                 .help("The domain of the network"),
         )
         .arg(
+            Arg::with_name("no-bind")
+                .long("no-bind")
+                .help("Avoid binding to the port in the UDP transport layer to indicate the OS that is going to be used (OS could sent ICMP requests indicating that the port is closed)")
+        )
+        .arg(
             Arg::with_name("verbosity")
                 .short("v")
                 .multiple(true)
@@ -135,6 +140,7 @@ pub struct Arguments {
     pub dhcp_server: Option<Ipv4Addr>,
     pub routers: Option<Vec<Ipv4Addr>>,
     pub dns: Option<Vec<Ipv4Addr>>,
+    pub udp_bind: bool,
     pub wpad: Use<String>,
     pub domain: Option<String>,
     pub netbios: Use<Vec<Ipv4Addr>>,
@@ -159,6 +165,7 @@ impl<'a> Arguments {
             wpad: use_string(matches, "wpad"),
             domain: helpers::parse_string(matches, "domain"),
             netbios: use_ips(matches, "netbios"),
+            udp_bind: !matches.is_present("no-bind"),
             verbosity: matches.occurrences_of("verbosity") as usize,
         }
     }

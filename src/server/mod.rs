@@ -6,7 +6,7 @@ use crate::transport::TransportChannel;
 use crate::{args, dhcp::DhcpOptions};
 use log::info;
 use pnet::util::MacAddr;
-use std::net::Ipv4Addr;
+use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, UdpSocket};
 
 use crate::helpers::get_iface_ipv4_network;
 use config::{generate_server_config, ServerConfig};
@@ -44,11 +44,17 @@ pub fn main(args: args::server::Arguments) -> Result<(), String> {
         info!("Domain: {}", domain);
     }
 
+    let dhcp_port = dhcp::DHCP_SERVER_PORT;
+    let _socket = match args.udp_bind {
+        true => Some(open_udp_socket(my_ip, dhcp_port)?),
+        false => None
+    };
+
     let mut channel = TransportChannel::new(iface, None)
         .map_err(|e| format!("Unable to create a raw socket: {}", e))?;
 
     loop {
-        let (client_ether_mac, dhcp_packet) = listen(&mut channel)?;
+        let (client_ether_mac, dhcp_packet) = listen(&mut channel, dhcp_port)?;
 
         let msg_type = dhcp_packet.dhcp_msg_type().unwrap();
         let client_mac = dhcp_packet.chaddr;
@@ -124,11 +130,25 @@ pub fn main(args: args::server::Arguments) -> Result<(), String> {
     }
 }
 
+fn open_udp_socket(
+    ip: Ipv4Addr,
+    port: u16
+) -> Result<UdpSocket, String> {
+        UdpSocket::bind(SocketAddr::V4(SocketAddrV4::new(ip, port)))
+        .map_err(|e| {
+            format!(
+                "Error binding to UDP port {}:{} : {}",
+                ip, port, e
+            )
+        })
+}
+
 fn listen(
     channel: &mut TransportChannel,
+    port: u16,
 ) -> Result<(MacAddr, DhcpPacket), String> {
     return channel.recv_dhcp(
-        dhcp::DHCP_SERVER_PORT,
+        port,
         &[
             DhcpMessageTypes::DISCOVER,
             DhcpMessageTypes::REQUEST,
