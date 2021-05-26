@@ -119,7 +119,9 @@ fn discover(
     let client_ip = dhcp_resp.yiaddr;
     debug!("OFFER received - Offered IP: {}", client_ip);
 
-    let dhcp_server = dhcp_resp.siaddr;
+    let dhcp_server = dhcp_resp
+        .dhcp_server_id()
+        .ok_or(format!("Unable to get the server ip"))?;
 
     let mut dp = DhcpPacket::new_request();
     dp.add_dhcp_msg_type(DhcpMessageTypes::REQUEST);
