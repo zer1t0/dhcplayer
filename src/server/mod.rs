@@ -230,7 +230,18 @@ fn process_request(
         }
     }
 
-    let res = match dhcp_request.requested_ip_address() {
+    let requested_ip = match dhcp_request.requested_ip_address() {
+        Some(ip) => Some(ip),
+        None => {
+            if dhcp_request.ciaddr == Ipv4Addr::UNSPECIFIED {
+                None
+            } else {
+                Some(dhcp_request.ciaddr)
+            }
+        }
+    };
+
+    let res = match requested_ip {
         Some(requested_ip) => {
             process_new_ip_request(client_mac, requested_ip, srv_conf)
         }
