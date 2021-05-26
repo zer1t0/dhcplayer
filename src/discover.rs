@@ -248,7 +248,9 @@ fn discover_and_request(
     let client_ip = dhcp_resp.yiaddr;
     info!("OFFER received - Offered IP: {}", client_ip);
 
-    let dhcp_server = dhcp_resp.siaddr;
+    let dhcp_server = dhcp_resp
+        .dhcp_server_id()
+        .ok_or(format!("Unable to get the server ip"))?;
 
     info!("REQUEST sent - Client MAC: {}", dhcp_mac);
     return send_recv_request(
