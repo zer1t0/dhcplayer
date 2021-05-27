@@ -249,7 +249,8 @@ impl RawDhcpOption {
     }
 }
 
-#[derive(PartialEq, Debug)]
+/// Defined in https://datatracker.ietf.org/doc/html/rfc4702
+#[derive(PartialEq, Debug, Clone)]
 pub struct ClientFqdn {
     pub flags: u8,
     pub aresult: u8,
@@ -337,6 +338,7 @@ pub mod DhcpOptions {
             MESSAGE => Some("Message"),
             RENEWAL_TIME => Some("Renewal Time"),
             REBINDING_TIME => Some("Rebinding Time"),
+            CLIENT_FQDN => Some("Client FQDN"),
             WPAD => Some("WPAD"),
             _ => None,
         }

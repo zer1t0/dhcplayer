@@ -7,7 +7,7 @@ pub enum Error<I> {
 
 impl<I> From<nom::Err<(I, nom::error::ErrorKind)>> for Error<I> {
     fn from(error: nom::Err<(I, nom::error::ErrorKind)>) -> Self {
-        return Self::NomError(error);x
+        return Self::NomError(error);
     }
 }
 
