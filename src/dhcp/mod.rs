@@ -138,6 +138,7 @@ impl DhcpPacket {
     add_option!(add_dhcp_server_id, DhcpServerId, Ipv4Addr);
     add_option!(add_domain_name, DomainName, String);
     add_option!(add_domain_server, DomainServer, Vec<Ipv4Addr>);
+    add_option!(add_hostname, HostName, String);
     add_option!(add_ip_address_lease_time, IpAddressLeaseTime, u32);
     add_option!(add_message, Message, String);
     add_option!(add_netbios_name_server, NetbiosNameServer, Vec<Ipv4Addr>);

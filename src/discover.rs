@@ -53,6 +53,7 @@ pub fn main(args: args::discover::Arguments) -> Result<(), String> {
             dhcp_mac,
             ether_mac,
             request_list,
+            args.hostname,
             args.servers.as_ref(),
         )?,
         Action::DiscoverAndRequest => {
@@ -61,6 +62,7 @@ pub fn main(args: args::discover::Arguments) -> Result<(), String> {
                 dhcp_mac,
                 ether_mac,
                 request_list,
+                args.hostname,
                 args.servers.as_ref(),
             )?;
             print_response(&resp);
@@ -103,13 +105,21 @@ fn discover_all(
     dhcp_mac: MacAddr,
     ether_mac: MacAddr,
     request_list: Vec<u8>,
+    hostname: Option<String>,
     servers: Option<&Vec<Ipv4Addr>>,
 ) -> Result<(), String> {
     let mut rng = rand::thread_rng();
     let transaction_id: u32 = rng.gen();
 
     info!("DISCOVER sent - Client MAC {}", dhcp_mac);
-    send_discover(channel, transaction_id, dhcp_mac, ether_mac, request_list)?;
+    send_discover(
+        channel,
+        transaction_id,
+        dhcp_mac,
+        ether_mac,
+        request_list,
+        hostname,
+    )?;
 
     loop {
         match channel.recv_dhcp(
@@ -230,6 +240,7 @@ fn discover_and_request(
     dhcp_mac: MacAddr,
     ether_mac: MacAddr,
     request_list: Vec<u8>,
+    hostname: Option<String>,
     servers: Option<&Vec<Ipv4Addr>>,
 ) -> Result<DhcpPacket, String> {
     let mut rng = rand::thread_rng();
@@ -242,6 +253,7 @@ fn discover_and_request(
         dhcp_mac,
         ether_mac,
         request_list.clone(),
+        hostname.clone(),
         servers,
     )?;
 
@@ -259,6 +271,7 @@ fn discover_and_request(
         dhcp_mac,
         ether_mac,
         request_list,
+        hostname,
         client_ip,
         dhcp_server,
     );
@@ -270,9 +283,17 @@ fn send_recv_discover(
     dhcp_mac: MacAddr,
     ether_mac: MacAddr,
     request_list: Vec<u8>,
+    hostname: Option<String>,
     servers: Option<&Vec<Ipv4Addr>>,
 ) -> Result<DhcpPacket, String> {
-    send_discover(channel, transaction_id, dhcp_mac, ether_mac, request_list)?;
+    send_discover(
+        channel,
+        transaction_id,
+        dhcp_mac,
+        ether_mac,
+        request_list,
+        hostname,
+    )?;
 
     let (_, dhcp_resp) = channel.recv_dhcp(
         dhcp::DHCP_CLIENT_PORT,
@@ -290,12 +311,17 @@ fn send_discover(
     dhcp_mac: MacAddr,
     ether_mac: MacAddr,
     request_list: Vec<u8>,
+    hostname: Option<String>,
 ) -> Result<(), String> {
     let mut dp = DhcpPacket::new_request();
     dp.add_dhcp_msg_type(DhcpMessageTypes::DISCOVER);
     dp.xid = transaction_id;
     dp.chaddr = dhcp_mac;
     dp.add_parameter_request_list(request_list);
+
+    if let Some(hostname) = hostname {
+        dp.add_hostname(hostname);
+    }
 
     channel
         .build_and_send(
@@ -319,6 +345,7 @@ fn send_recv_request(
     dhcp_mac: MacAddr,
     ether_mac: MacAddr,
     request_list: Vec<u8>,
+    hostname: Option<String>,
     client_ip: Ipv4Addr,
     dhcp_server: Ipv4Addr,
 ) -> Result<DhcpPacket, String> {
@@ -329,6 +356,10 @@ fn send_recv_request(
     dp.add_requested_ip_address(client_ip);
     dp.add_dhcp_server_id(dhcp_server);
     dp.add_parameter_request_list(request_list);
+
+    if let Some(hostname) = hostname {
+        dp.add_hostname(hostname);
+    }
 
     channel
         .build_and_send(

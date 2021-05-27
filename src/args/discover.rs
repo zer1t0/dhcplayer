@@ -77,6 +77,13 @@ pub fn command() -> App<'static, 'static> {
                 .help("Indicate the DHCP options, separated by commas, that want to be retrieved, it must be a byte or a value in [all, none, broadcast, dns, domain, mask, netbios, router, wins, wpad]"),
         )
         .arg(
+            Arg::with_name("hostname")
+                .long("hostname")
+                .short("H")
+                .takes_value(true)
+                .help("Hostname to send in the petition")
+        )
+        .arg(
             Arg::with_name("verbosity")
                 .short("v")
                 .multiple(true)
@@ -93,6 +100,7 @@ pub struct Arguments {
     pub send_request: bool,
     pub options: Option<Vec<u8>>,
     pub servers: Option<Vec<Ipv4Addr>>,
+    pub hostname: Option<String>,
     pub verbosity: usize,
 }
 
@@ -113,6 +121,7 @@ impl<'a> Arguments {
             inform: matches.is_present("inform"),
             send_request: !matches.is_present("no-request"),
             servers: helpers::parse_ips(matches, "server"),
+            hostname: helpers::parse_string(matches, "hostname"),
             verbosity: matches.occurrences_of("verbosity") as usize,
         }
     }
