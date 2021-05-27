@@ -1,4 +1,4 @@
-use super::err::IResult;
+use super::err::{Error, IResult};
 use super::helpers::{parse_ipv4, parse_utf8};
 use nom::bytes::complete::take;
 use nom::multi::many0;
@@ -8,6 +8,7 @@ use std::{fmt::Display, net::Ipv4Addr};
 #[derive(PartialEq, Debug)]
 pub enum DhcpOption {
     BroadcastAddress(Ipv4Addr),
+    ClientFqdn(ClientFqdn),
     DhcpMsgType(u8),
     DhcpServerId(Ipv4Addr),
     DomainName(String),
@@ -38,6 +39,9 @@ impl DhcpOption {
             DhcpOptions::BROADCAST_ADDRESS => {
                 DhcpOption::BroadcastAddress(parse_ipv4(data)?.1)
             }
+            DhcpOptions::CLIENT_FQDN => DhcpOption::ClientFqdn(
+                ClientFqdn::parse(data).map_err(|e| nom::Err::Error(e))?,
+            ),
             DhcpOptions::DHCP_MSG_TYPE => {
                 DhcpOption::DhcpMsgType(be_u8(data)?.1)
             }
@@ -100,6 +104,10 @@ impl DhcpOption {
                 code: DhcpOptions::BROADCAST_ADDRESS,
                 data: addr.octets().to_vec(),
             },
+            Self::ClientFqdn(cf) => RawDhcpOption {
+                code: DhcpOptions::CLIENT_FQDN,
+                data: cf.build(),
+            },
             Self::DhcpMsgType(mtype) => RawDhcpOption {
                 code: DhcpOptions::DHCP_MSG_TYPE,
                 data: vec![*mtype as u8],
@@ -127,10 +135,9 @@ impl DhcpOption {
                 code: DhcpOptions::MESSAGE,
                 data: msg.as_bytes().to_vec(),
             },
-            Self::NameServer(addrs) => RawDhcpOption::from_addrs(
-                DhcpOptions::NAME_SERVER,
-                addrs,
-            ),
+            Self::NameServer(addrs) => {
+                RawDhcpOption::from_addrs(DhcpOptions::NAME_SERVER, addrs)
+            }
             Self::NetbiosNameServer(addrs) => RawDhcpOption::from_addrs(
                 DhcpOptions::NETBIOS_NAME_SERVER,
                 addrs,
@@ -169,6 +176,7 @@ impl DhcpOption {
     pub fn value_str(&self) -> String {
         match self {
             Self::BroadcastAddress(addr) => format!("{}", addr),
+            Self::ClientFqdn(cf) => format!("{:?}", cf),
             Self::DhcpMsgType(mtype) => {
                 format!(
                     "{} {}",
@@ -241,6 +249,41 @@ impl RawDhcpOption {
     }
 }
 
+#[derive(PartialEq, Debug)]
+pub struct ClientFqdn {
+    pub flags: u8,
+    pub aresult: u8,
+    pub ptrresult: u8,
+    pub name: String,
+}
+
+impl ClientFqdn {
+    pub fn parse(input: &[u8]) -> Result<Self, Error<&[u8]>> {
+        let (input, flags) = be_u8(input)?;
+        let (input, aresult) = be_u8(input)?;
+        let (input, ptrresult) = be_u8(input)?;
+
+        let name = parse_utf8(input)?;
+
+        return Ok(Self {
+            flags,
+            aresult,
+            ptrresult,
+            name,
+        });
+    }
+
+    pub fn build(&self) -> Vec<u8> {
+        let mut raw = Vec::new();
+        raw.push(self.flags);
+        raw.push(self.aresult);
+        raw.push(self.ptrresult);
+        raw.extend(self.name.as_bytes());
+
+        return raw;
+    }
+}
+
 #[allow(non_snake_case)]
 pub mod DhcpOptions {
 
@@ -269,6 +312,8 @@ pub mod DhcpOptions {
 
     pub const RENEWAL_TIME: u8 = 58;
     pub const REBINDING_TIME: u8 = 59;
+
+    pub const CLIENT_FQDN: u8 = 81;
 
     pub const WPAD: u8 = 252;
 

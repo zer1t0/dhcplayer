@@ -5,6 +5,12 @@ pub enum Error<I> {
     NonUtf8String,
 }
 
+impl<I> From<nom::Err<(I, nom::error::ErrorKind)>> for Error<I> {
+    fn from(error: nom::Err<(I, nom::error::ErrorKind)>) -> Self {
+        return Self::NomError(error);x
+    }
+}
+
 impl<I> nom::error::ParseError<I> for Error<I> {
     fn from_error_kind(input: I, kind: nom::error::ErrorKind) -> Self {
         Error::NomError(nom::Err::Error((input, kind)))
