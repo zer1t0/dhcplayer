@@ -176,7 +176,7 @@ impl DhcpOption {
     pub fn value_str(&self) -> String {
         match self {
             Self::BroadcastAddress(addr) => format!("{}", addr),
-            Self::ClientFqdn(cf) => format!("{:?}", cf),
+            Self::ClientFqdn(cf) => format!("{}", cf.value_str()),
             Self::DhcpMsgType(mtype) => {
                 format!(
                     "{} {}",
@@ -249,6 +249,8 @@ impl RawDhcpOption {
     }
 }
 
+pub const FQDN_SERVER_UDPATE: u8 = 0x1;
+
 /// Defined in https://datatracker.ietf.org/doc/html/rfc4702
 #[derive(PartialEq, Debug, Clone)]
 pub struct ClientFqdn {
@@ -282,6 +284,19 @@ impl ClientFqdn {
         raw.extend(self.name.as_bytes());
 
         return raw;
+    }
+
+    pub fn value_str(&self) -> String {
+        let flags_names = if (self.flags & FQDN_SERVER_UDPATE) != 0 {
+            " (server-update)"
+        } else {
+            ""
+        };
+
+        format!(
+            "flags: 0x{:x}{} A-result: {} PTR-result: {} {}",
+            self.flags, flags_names, self.aresult, self.ptrresult, self.name
+        )
     }
 }
 
