@@ -77,6 +77,17 @@ pub fn command() -> App<'static, 'static> {
                 .help("Indicate the DHCP options, separated by commas, that want to be retrieved, it must be a byte or a value in [all, none, broadcast, dns, domain, mask, netbios, router, wins, wpad]"),
         )
         .arg(
+            Arg::with_name("fqdn")
+                .long("fqdn")
+                .takes_value(true)
+                .help("Fully Qualified Domain Name of the client (the hostname with the domain)")
+        )
+        .arg(
+            Arg::with_name("dns-update")
+                .long("dns-update")
+                .help("Requests creation of DNS record using the given FQDN or hostname. If none of them are given, can be used to delete the DNS record.")
+        )
+        .arg(
             Arg::with_name("hostname")
                 .long("hostname")
                 .short("H")
@@ -101,6 +112,8 @@ pub struct Arguments {
     pub options: Option<Vec<u8>>,
     pub servers: Option<Vec<Ipv4Addr>>,
     pub hostname: Option<String>,
+    pub fqdn: Option<String>,
+    pub dns_update: bool,
     pub verbosity: usize,
 }
 
@@ -122,6 +135,8 @@ impl<'a> Arguments {
             send_request: !matches.is_present("no-request"),
             servers: helpers::parse_ips(matches, "server"),
             hostname: helpers::parse_string(matches, "hostname"),
+            fqdn: helpers::parse_string(matches, "fqdn"),
+            dns_update: matches.is_present("dns-update"),
             verbosity: matches.occurrences_of("verbosity") as usize,
         }
     }

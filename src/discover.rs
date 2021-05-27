@@ -1,6 +1,6 @@
 use std::net::Ipv4Addr;
 
-use crate::dhcp::{DhcpMessageTypes, DhcpOption, DhcpPacket};
+use crate::dhcp::{ClientFqdn, DhcpMessageTypes, DhcpOption, DhcpPacket};
 use crate::{
     args,
     dhcp::{self, DhcpOptions},
@@ -33,9 +33,6 @@ pub fn main(args: args::discover::Arguments) -> Result<(), String> {
         false => dhcp_mac,
     };
 
-    let mut channel = TransportChannel::new(iface, Some(args.timeout))
-        .map_err(|e| format!("Unable to create a raw socket: {}", e))?;
-
     let request_list = match args.options {
         Some(options) => options,
         None => vec![
@@ -47,13 +44,35 @@ pub fn main(args: args::discover::Arguments) -> Result<(), String> {
         ],
     };
 
+    let dns_update = args.dns_update;
+    let fqdn = args.fqdn.unwrap_or("".to_string());
+
+    let client_fqdn = if dns_update || fqdn.len() != 0 {
+        Some(ClientFqdn {
+            flags: dns_update as u8,
+            aresult: 0,
+            ptrresult: 0,
+            name: fqdn,
+        })
+    } else {
+        None
+    };
+
+    let client_options = ClientOptions {
+        request_list,
+        hostname: args.hostname,
+        client_fqdn,
+    };
+
+    let mut channel = TransportChannel::new(iface, Some(args.timeout))
+        .map_err(|e| format!("Unable to create a raw socket: {}", e))?;
+
     match get_action(args.inform, args.send_request) {
         Action::Discover => discover_all(
             &mut channel,
             dhcp_mac,
             ether_mac,
-            request_list,
-            args.hostname,
+            &client_options,
             args.servers.as_ref(),
         )?,
         Action::DiscoverAndRequest => {
@@ -61,8 +80,7 @@ pub fn main(args: args::discover::Arguments) -> Result<(), String> {
                 &mut channel,
                 dhcp_mac,
                 ether_mac,
-                request_list,
-                args.hostname,
+                &client_options,
                 args.servers.as_ref(),
             )?;
             print_response(&resp);
@@ -79,7 +97,7 @@ pub fn main(args: args::discover::Arguments) -> Result<(), String> {
                 my_ip,
                 dhcp_mac,
                 ether_mac,
-                request_list,
+                &client_options,
                 args.servers.as_ref(),
             )?;
         }
@@ -104,8 +122,7 @@ fn discover_all(
     channel: &mut TransportChannel,
     dhcp_mac: MacAddr,
     ether_mac: MacAddr,
-    request_list: Vec<u8>,
-    hostname: Option<String>,
+    client_options: &ClientOptions,
     servers: Option<&Vec<Ipv4Addr>>,
 ) -> Result<(), String> {
     let mut rng = rand::thread_rng();
@@ -117,8 +134,7 @@ fn discover_all(
         transaction_id,
         dhcp_mac,
         ether_mac,
-        request_list,
-        hostname,
+        client_options,
     )?;
 
     loop {
@@ -147,7 +163,7 @@ fn inform_all(
     client_ip: Ipv4Addr,
     dhcp_mac: MacAddr,
     ether_mac: MacAddr,
-    request_list: Vec<u8>,
+    client_options: &ClientOptions,
     servers: Option<&Vec<Ipv4Addr>>,
 ) -> Result<(), String> {
     let mut rng = rand::thread_rng();
@@ -160,7 +176,7 @@ fn inform_all(
         transaction_id,
         dhcp_mac,
         ether_mac,
-        request_list,
+        client_options,
         client_ip,
     )?;
 
@@ -239,8 +255,7 @@ fn discover_and_request(
     channel: &mut TransportChannel,
     dhcp_mac: MacAddr,
     ether_mac: MacAddr,
-    request_list: Vec<u8>,
-    hostname: Option<String>,
+    client_options: &ClientOptions,
     servers: Option<&Vec<Ipv4Addr>>,
 ) -> Result<DhcpPacket, String> {
     let mut rng = rand::thread_rng();
@@ -252,8 +267,7 @@ fn discover_and_request(
         transaction_id,
         dhcp_mac,
         ether_mac,
-        request_list.clone(),
-        hostname.clone(),
+        client_options,
         servers,
     )?;
 
@@ -270,8 +284,7 @@ fn discover_and_request(
         transaction_id,
         dhcp_mac,
         ether_mac,
-        request_list,
-        hostname,
+        client_options,
         client_ip,
         dhcp_server,
     );
@@ -282,8 +295,7 @@ fn send_recv_discover(
     transaction_id: u32,
     dhcp_mac: MacAddr,
     ether_mac: MacAddr,
-    request_list: Vec<u8>,
-    hostname: Option<String>,
+    client_options: &ClientOptions,
     servers: Option<&Vec<Ipv4Addr>>,
 ) -> Result<DhcpPacket, String> {
     send_discover(
@@ -291,8 +303,7 @@ fn send_recv_discover(
         transaction_id,
         dhcp_mac,
         ether_mac,
-        request_list,
-        hostname,
+        client_options,
     )?;
 
     let (_, dhcp_resp) = channel.recv_dhcp(
@@ -310,18 +321,13 @@ fn send_discover(
     transaction_id: u32,
     dhcp_mac: MacAddr,
     ether_mac: MacAddr,
-    request_list: Vec<u8>,
-    hostname: Option<String>,
+    client_options: &ClientOptions,
 ) -> Result<(), String> {
     let mut dp = DhcpPacket::new_request();
     dp.add_dhcp_msg_type(DhcpMessageTypes::DISCOVER);
     dp.xid = transaction_id;
     dp.chaddr = dhcp_mac;
-    dp.add_parameter_request_list(request_list);
-
-    if let Some(hostname) = hostname {
-        dp.add_hostname(hostname);
-    }
+    set_client_options(&mut dp, client_options);
 
     channel
         .build_and_send(
@@ -344,8 +350,7 @@ fn send_recv_request(
     transaction_id: u32,
     dhcp_mac: MacAddr,
     ether_mac: MacAddr,
-    request_list: Vec<u8>,
-    hostname: Option<String>,
+    client_options: &ClientOptions,
     client_ip: Ipv4Addr,
     dhcp_server: Ipv4Addr,
 ) -> Result<DhcpPacket, String> {
@@ -355,11 +360,8 @@ fn send_recv_request(
     dp.chaddr = dhcp_mac;
     dp.add_requested_ip_address(client_ip);
     dp.add_dhcp_server_id(dhcp_server);
-    dp.add_parameter_request_list(request_list);
 
-    if let Some(hostname) = hostname {
-        dp.add_hostname(hostname);
-    }
+    set_client_options(&mut dp, client_options);
 
     channel
         .build_and_send(
@@ -389,7 +391,7 @@ fn send_inform(
     transaction_id: u32,
     dhcp_mac: MacAddr,
     ether_mac: MacAddr,
-    request_list: Vec<u8>,
+    client_options: &ClientOptions,
     client_ip: Ipv4Addr,
 ) -> Result<(), String> {
     let mut dp = DhcpPacket::new_request();
@@ -397,7 +399,7 @@ fn send_inform(
     dp.xid = transaction_id;
     dp.ciaddr = client_ip;
     dp.chaddr = dhcp_mac;
-    dp.add_parameter_request_list(request_list.clone());
+    set_client_options(&mut dp, client_options);
 
     channel
         .build_and_send(
@@ -413,4 +415,22 @@ fn send_inform(
         .map_err(|e| format!("Error sending packet: {}", e))?;
 
     return Ok(());
+}
+
+pub fn set_client_options(dp: &mut DhcpPacket, co: &ClientOptions) {
+    dp.add_parameter_request_list(co.request_list.clone());
+
+    if let Some(hostname) = &co.hostname {
+        dp.add_hostname(hostname.clone());
+    }
+
+    if let Some(client_fqdn) = &co.client_fqdn {
+        dp.add_client_fqdn(client_fqdn.clone());
+    }
+}
+
+pub struct ClientOptions {
+    pub request_list: Vec<u8>,
+    pub hostname: Option<String>,
+    pub client_fqdn: Option<ClientFqdn>,
 }
