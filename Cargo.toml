@@ -1,6 +1,6 @@
 [package]
 name = "dhcplayer"
-version = "0.1.3"
+version = "0.1.4"
 authors = ["Eloy Pérez <zer1t0ps@protonmail.com>"]
 description = "A tool to play and attack DHCP"
 edition = "2018"
