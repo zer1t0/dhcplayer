@@ -112,6 +112,57 @@ Options:
 
 ```
 
+### DNS Dynamic Update
+
+You can ask the DHCP server to create a new DNS A record with the flag `--dns-update` based on the hostname (`-H/--hostname`) or the FQDN (Fully Qualified Domain Name) (`--fqdn`). If you don't specify hostname nor FQDN, the DNS record will be deleted.
+
+The server should return the `server-update` flag in Client FQDN (81) if the update was successful.
+
+```bash
+$ sudo dhcplayer discover -I eth2 --dns-update -H test
+ACK received from 0.0.0.0
+Acquired IP: 192.168.100.3
+Client MAC: 52:54:00:88:80:0c
+Options:
+[58] Renewal Time: 345600
+[59] Rebinding Time: 604800
+[51] IP Address Lease Time: 691200
+[54] DHCP Server ID: 192.168.100.2
+[1] Subnet Mask: 255.255.255.0
+[81] Client FQDN: flags: 0x1 (server-update) A-result: 255 PTR-result: 0 
+[3] Router: 192.168.100.2
+[15] Domain Name: contoso.local
+[6] Domain Server: 192.168.100.2
+
+$ nslookup test.contoso.local 192.168.100.2
+Server:		192.168.100.2
+Address:	192.168.100.2#53
+
+Name:	test.contoso.local
+Address: 192.168.100.3
+
+$ sudo dhcplayer discover -I eth2 --dns-update
+ACK received from 0.0.0.0
+Acquired IP: 192.168.100.3
+Client MAC: 52:54:00:88:80:0c
+Options:
+[58] Renewal Time: 345600
+[59] Rebinding Time: 604800
+[51] IP Address Lease Time: 691200
+[54] DHCP Server ID: 192.168.100.2
+[1] Subnet Mask: 255.255.255.0
+[81] Client FQDN: flags: 0x1 (server-update) A-result: 255 PTR-result: 0 
+[3] Router: 192.168.100.2
+[15] Domain Name: contoso.local
+[6] Domain Server: 192.168.100.2
+
+$ nslookup test.contoso.local 192.168.100.2
+Server:		192.168.100.2
+Address:	192.168.100.2#53
+
+** server can't find test.contoso.local: NXDOMAIN
+```
+
 ### Inform
 
 Additionally, you can send an INFORM petition instead of DISCOVER by using the `-i/--inform` flag of the `discover` command.
@@ -154,6 +205,8 @@ INFO - RELEASE 192.168.100.7 52:54:00:a4:8c:f2
 INFO - RELEASE 192.168.100.5 52:54:00:76:87:bb
 ```
 
-# Disclaimer
+
+
+## Disclaimer
 
 Please, don't use this tool for bad things. I won't assume any responsibility for your actions with this tool.
