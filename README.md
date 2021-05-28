@@ -114,9 +114,15 @@ Options:
 
 ### DNS Dynamic Update
 
-You can ask the DHCP server to create a new DNS A record with the flag `--dns-update` based on the hostname (`-H/--hostname`) or the FQDN (Fully Qualified Domain Name) (`--fqdn`). If you don't specify hostname nor FQDN, the DNS record will be deleted.
+You can ask the DHCP server to create a new DNS A record with the `--dns-update` flag based on the hostname (`-H/--hostname`) or the FQDN (Fully Qualified Domain Name) (`--fqdn`). If you don't specify hostname nor FQDN, the DNS record will be deleted.
 
 The server should return the `server-update` flag in Client FQDN (81) if the update was successful.
+
+```bash
+sudo dhcplayer discover -I eth2 --dns-update -H test # Update based on hostname
+sudo dhcplayer discover -I eth2 --dns-update --fqdn test.contoso.local # Update based on fqdn
+sudo dhcplayer discover -I eth2 --dns-update # Delete DNS record
+```
 
 ```bash
 $ sudo dhcplayer discover -I eth2 --dns-update -H test
