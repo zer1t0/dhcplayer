@@ -6,6 +6,7 @@ use crate::transport::TransportChannel;
 use crate::{args, dhcp::DhcpOptions};
 use log::info;
 use pnet::util::MacAddr;
+use socket2::{Domain, Socket, Type};
 use std::net::{Ipv4Addr, SocketAddr, SocketAddrV4, UdpSocket};
 
 use crate::helpers::get_iface_ipv4_network;
@@ -47,7 +48,7 @@ pub fn main(args: args::server::Arguments) -> Result<(), String> {
     let dhcp_port = dhcp::DHCP_SERVER_PORT;
     let _socket = match args.udp_bind {
         true => Some(open_udp_socket(my_ip, dhcp_port)?),
-        false => None
+        false => None,
     };
 
     let mut channel = TransportChannel::new(iface, None)
@@ -130,17 +131,18 @@ pub fn main(args: args::server::Arguments) -> Result<(), String> {
     }
 }
 
-fn open_udp_socket(
-    ip: Ipv4Addr,
-    port: u16
-) -> Result<UdpSocket, String> {
-        UdpSocket::bind(SocketAddr::V4(SocketAddrV4::new(ip, port)))
-        .map_err(|e| {
-            format!(
-                "Error binding to UDP port {}:{} : {}",
-                ip, port, e
-            )
-        })
+fn open_udp_socket(ip: Ipv4Addr, port: u16) -> Result<UdpSocket, String> {
+    setup_udp_socket(ip, port).map_err(|e| {
+        format!("Error binding to UDP port {}:{} : {}", ip, port, e)
+    })
+}
+
+fn setup_udp_socket(ip: Ipv4Addr, port: u16) -> std::io::Result<UdpSocket> {
+    let socket = Socket::new(Domain::IPV4, Type::DGRAM, None)?;
+    socket.set_reuse_address(true)?;
+    socket.set_reuse_port(true)?;
+    socket.bind(&SocketAddr::V4(SocketAddrV4::new(ip, port)).into())?;
+    return Ok(socket.into());
 }
 
 fn listen(
