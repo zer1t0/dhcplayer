@@ -4,7 +4,7 @@
 [![Language Rust](https://img.shields.io/badge/Language-Rust-blue)](https://www.rust-lang.org/)
 
 
-dhcplayer is a tool to perform several actions using the DHCP protocol, both as client or server. It allows you to perform simple DHCP requests but also perform some known attacks like DHCP starvation or setting a sogue DHCP server.
+dhcplayer is a tool to perform several actions using the DHCP protocol, both as client or server. It allows you to perform simple DHCP requests but also perform some known attacks like DHCP starvation or setting a rogue DHCP server.
 
 
 In order to run dhcplayer, you need `root` privileges to be able to create raw sockets.
