@@ -1,5 +1,7 @@
 # DHCPlayer
 
+**Moved to https://gitlab.com/Zer1t0/dhcplayer**
+
 [![Crates.io](https://img.shields.io/crates/v/dhcplayer)](https://crates.io/crates/dhcplayer)
 [![Language Rust](https://img.shields.io/badge/Language-Rust-blue)](https://www.rust-lang.org/)
 
